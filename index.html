@@ -42,7 +42,7 @@ let v='list',cur=null,saveT;
 const db=new Promise(r=>{try{const q=indexedDB.open('wb',1);q.onupgradeneeded=()=>q.result.createObjectStore('kv');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
 async function load(){const d=await db;if(!d){try{const x=localStorage.getItem('wb');if(x)S=JSON.parse(x)}catch(e){}return}
  return new Promise(r=>{const q=d.transaction('kv').objectStore('kv').get('s');q.onsuccess=()=>{if(q.result)S=q.result;r()};q.onerror=()=>r()})}
-async function save(){const d=await db;if(!d){try{localStorage.setItem('wb',JSON.stringify(S))}catch(e){}return}d.transaction('kv','readwrite').objectStore('kv').put(S,'s')}
+async function save(fromCloud){if(!fromCloud&&window.CLOUD)CLOUD.soon();const d=await db;if(!d){try{localStorage.setItem('wb',JSON.stringify(S))}catch(e){}return}d.transaction('kv','readwrite').objectStore('kv').put(S,'s')}
 const sv=()=>{clearTimeout(saveT);saveT=setTimeout(save,300)};
 const O=()=>S.orders.find(o=>o.id==cur);
 const isRun=o=>o.t.length&&!o.t[o.t.length-1].e;
@@ -52,7 +52,7 @@ const tm=t=>new Date(t).toLocaleTimeString('nl-BE',{hour:'2-digit',minute:'2-dig
 const dt=d=>d?new Date(d).toLocaleDateString('nl-BE'):'';
 let ren=0;function go(x,id){ren=0;v=x;if(id)cur=id;R();scrollTo(0,0)}
 function newO(cid){const y=new Date().getFullYear(),o={id:Date.now().toString(36),nr:'WB-'+y+'-'+String(++S.seq).padStart(3,'0'),datum:new Date().toISOString().slice(0,10),klant:'',adres:'',tel:'',mail:'',omschr:'',t:[],werk:[],opm:'',fotos:[],sig:'',sigNaam:'',status:'open',od:{ja:0,t:''},sm:0,btw:'',pr:0};const cc=cid&&S.clients.find(c=>c.id==cid);if(cc)Object.assign(o,{klant:cc.n,adres:cc.adres,tel:cc.tel,mail:cc.mail,sigNaam:cc.n});S.orders.unshift(o);save();go('ord',o.id)}
-function delO(){if(confirm('Deze werkbon definitief verwijderen?')){S.orders=S.orders.filter(o=>o.id!=cur);save();go('list')}}
+function delO(){if(confirm('Deze werkbon definitief verwijderen?')){S.orders=S.orders.filter(o=>o.id!=cur);window.CLOUD&&CLOUD.markDeleted('work','order',cur);save();go('list')}}
 function upd(k,x){const o=O();o[k]=x;if(k=='klant'&&!o.sm){o.sigNaam=x;const e=$('#snm');if(e)e.value=x}sv()}
 function sn(x){const o=O();o.sigNaam=x;o.sm=x!==o.klant;sv()}
 function setBtw(x){const o=O();o.btw=o.btw==x?'':x;save();R()}
@@ -149,7 +149,7 @@ function addCl(o){const n=o.klant.trim();if(!n)return;const c=S.clients.find(c=>
 function pick(v){const o=O(),c=S.clients.find(c=>c.n.toLowerCase()==v.trim().toLowerCase());if(c){o.adres=o.adres||c.adres||'';o.tel=o.tel||c.tel||'';o.mail=o.mail||c.mail||'';save();R()}}
 function newC(){const c={id:'c'+Date.now().toString(36),n:'',adres:'',tel:'',mail:''};S.clients.push(c);save();go('cd',c.id)}
 function setC(k,v){C()[k]=v;sv()}
-function delC(){if(confirm('Deze klant verwijderen? Bestaande werkbonnen blijven bewaard.')){S.clients=S.clients.filter(c=>c.id!=cur);save();go('list')}}
+function delC(){if(confirm('Deze klant verwijderen? Bestaande werkbonnen blijven bewaard.')){S.clients=S.clients.filter(c=>c.id!=cur);window.CLOUD&&CLOUD.markDeleted('shared','client',cur);save();go('list')}}
 function VC(){const c=C(),h=ords(c).sort((a,b)=>b.datum.localeCompare(a.datum));return `<div class="top np"><button class="b2" onclick="go('list')">← Terug</button><button class="red" onclick="delC()">Verwijderen</button></div><h1>Klant</h1>
 <div class="c"><input placeholder="Naam" value="${esc(c.n)}" oninput="setC('n',this.value)"><input placeholder="Adres" value="${esc(c.adres)}" oninput="setC('adres',this.value)"><div class="row wrap"><input style="flex:1;min-width:140px" type="tel" placeholder="Telefoon" value="${esc(c.tel)}" oninput="setC('tel',this.value)"><input style="flex:1;min-width:140px" type="email" placeholder="E-mail" value="${esc(c.mail)}" oninput="setC('mail',this.value)"></div></div>
 <button style="width:100%;margin-bottom:12px" onclick="newO('${c.id}')">+ Nieuwe werkbon voor deze klant</button>
@@ -206,13 +206,14 @@ function LST(){
  const k=q.trim().toLowerCase(),a=S.orders.filter(o=>o.status=='afgewerkt'&&(!k||[o.nr,o.klant,o.adres,o.tel,o.omschr,dt(o.datum)].join(' ').toLowerCase().includes(k))).sort((a,b)=>(b.datum+b.nr).localeCompare(a.datum+a.nr));
  let m='';return a.map(o=>{const h=o.datum?new Date(o.datum).toLocaleDateString('nl-BE',{month:'long',year:'numeric'}):'Zonder datum',t=h!=m?`<h2 style="margin-top:12px">${h}</h2>`:'';m=h;return t+row(o)}).join('')||'<p class="mu">Geen afgeronde werkbonnen gevonden.</p>'}
 const fl=()=>{const e=$('#lst');if(e)e.innerHTML=LST()};
-function VL(){const n=S.orders.filter(o=>o.status=='afgewerkt').length;return `<img class="lg" src="logo-app.png" alt="Van Eyen Technics"><div class="top"><h1>VET Work</h1><button class="b2" onclick="go('set')">Instellingen</button></div>
-<button style="width:100%;margin-bottom:12px;padding:14px" onclick="newO()">+ Nieuwe werkbon</button>${S.orders.length&&(!S.bk||Date.now()-S.bk>12096e5)?`<p class="mu" style="cursor:pointer" onclick="go('set')">⚠ Maak een back-up (Instellingen)${S.bk?' · laatste: '+dt(S.bk):''}</p>`:''}
+function VL(){const n=S.orders.filter(o=>o.status=='afgewerkt').length;return `<img class="lg" src="logo-app.png" alt="Van Eyen Technics"><div class="top"><h1>VET Work</h1><button class="b2" onclick="go('set')">Instellingen</button></div>${window.CLOUDST?`<div style="margin:-6px 0 10px">${CLOUDST()}</div>`:''}
+<button style="width:100%;margin-bottom:12px;padding:14px" onclick="newO()">+ Nieuwe werkbon</button>${!(window.CLOUD&&CLOUD.session())&&S.orders.length&&(!S.bk||Date.now()-S.bk>12096e5)?`<p class="mu" style="cursor:pointer" onclick="go('set')">⚠ Maak een back-up (Instellingen)${S.bk?' · laatste: '+dt(S.bk):''}</p>`:''}
 <div class="tg" style="margin-bottom:12px"><button class="${tab=='open'?'on':''}" onclick="tab='open';q='';R()">Open</button><button class="${tab=='af'?'on':''}" onclick="tab='af';q='';R()">Afgerond (${n})</button><button class="${tab=='kl'?'on':''}" onclick="tab='kl';q='';R()">Klanten</button></div>
 ${tab!='open'?`<input type="search" placeholder="Zoek op klant, adres, nummer of datum" value="${esc(q)}" oninput="q=this.value;fl()">`:''}
 ${tab=='kl'?'<button class="b2" style="width:100%;margin-bottom:10px" onclick="newC()">+ Nieuwe klant</button>':''}<div id="lst">${LST()}</div>`}
 
 function VS(){return `<div class="top"><h1>Instellingen</h1><button class="b2" onclick="go('list')">Klaar</button></div>
+${window.CLOUDCARD?CLOUDCARD():''}
 <div class="c"><h2>Artikelen / uitgevoerde werken</h2><p class="mu">Deze lijst kies je op een werkbon om de uitgevoerde werken op te sommen.</p>
 <div class="row"><input id="na" placeholder="Nieuw artikel of werk" onkeydown="if(event.key=='Enter')addA()"><button onclick="addA()">Toevoegen</button></div><br>
 ${S.articles.map(a=>`<div class="item" style="cursor:default;flex-wrap:wrap"><span style="flex:1;min-width:150px">${esc(a.n)}</span><input class="q" style="width:92px;margin:0" type="number" step="0.01" min="0" placeholder="€ excl." value="${a.p??''}" oninput="setA('${a.id}','p',this.value)"><select style="width:88px;margin:0" onchange="setA('${a.id}','u',this.value)">${['stuk','uur','m','forfait'].map(u=>`<option ${a.u==u?'selected':''}>${u}</option>`).join('')}</select><button class="red" onclick="rmA('${a.id}')">✕</button></div>`).join('')||'<p class="mu">Geen artikelen.</p>'}</div>
@@ -257,7 +258,10 @@ const sigO=()=>initSig('sg',()=>O().sig,x=>{O().sig=x;O().sigT=Date.now();sv()})
 const sigT=()=>initSig('sg2',()=>S.tsig,x=>{S.tsig=x;sv()});
 function R(){$('#app').innerHTML=v=='list'?VL():v=='set'?VS():v=='cd'?VC():VO();if(v=='ord')sigO();if(v=='set')sigT()}
 setInterval(()=>{if(v=='ord'){const o=O(),e=$('#tt');if(o&&e&&isRun(o))e.textContent=hms(tot(o))}},1000);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!window._rl){window._rl=1;location.reload()}})}
 navigator.storage?.persist?.();
 load().then(()=>{S.clients=S.clients||[];R()});
-</script></body></html>
+</script>
+<script src="vet-sync.js"></script>
+<script src="work-cloud.js"></script>
+</body></html>

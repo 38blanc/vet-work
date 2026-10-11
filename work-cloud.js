@@ -12,6 +12,7 @@ const CLOUD = VETSync.create({
     const out = [];
     S.orders.forEach((o) => out.push({ app: 'work', kind: 'order', id: o.id, data: o }));
     S.clients.forEach((c) => out.push({ app: 'shared', kind: 'client', id: c.id, data: toShared(c) }));
+    if (S.artKlaar || (S.articles || []).length) { S.artKlaar = true; out.push({ app: 'shared', kind: 'articles', id: 'main', data: { list: (S.articles || []).map((a) => ({ id: a.id, n: a.n || '', p: a.p == null || a.p === '' ? null : Number(a.p), u: a.u || 'stuk', det: a.det || '', btw: a.btw || '' })) } }); }
     out.push({ app: 'work', kind: 'settings', id: 'main', data: { articles: S.articles, seq: S.seq, tsig: S.tsig || '', lay: S.lay || 0 } });
     return out;
   },
@@ -41,9 +42,14 @@ const CLOUD = VETSync.create({
         }
         Object.assign(c, { n: d.n || '', adres: d.adres || [d.straat, d.pc].filter(Boolean).join(', '), tel: d.tel || '', mail: d.mail || '' });
         if (d.inst) c.inst = d.inst;
+      } else if (r.kind === 'articles' && !r.deleted) {
+        // gedeelde artikellijst met VET Office
+        const list = (r.data && r.data.list) || [];
+        if (!S.artKlaar) { const namen = new Set(list.map((a) => (a.n || '').trim().toLowerCase())); (S.articles || []).forEach((a) => { if (a.n && !namen.has(a.n.trim().toLowerCase())) list.push(a); }); S.artKlaar = true; CLOUD.soon(500); }
+        S.articles = list.map((a) => Object.assign({}, a, { u: a.u || 'stuk' }));
       } else if (r.kind === 'settings' && !r.deleted) {
         const d = r.data || {};
-        if (Array.isArray(d.articles)) S.articles = d.articles;
+        if (Array.isArray(d.articles) && !S.artKlaar) S.articles = d.articles;
         S.seq = Math.max(S.seq || 0, d.seq || 0);
         if (d.tsig) S.tsig = d.tsig;
         if (d.lay != null) S.lay = d.lay;
@@ -77,4 +83,13 @@ async function cloudLogin(btn) {
   btn.disabled = true; btn.textContent = 'Inloggen…';
   try { await CLOUD.login(e, p); R(); } catch (x) { alert('Inloggen mislukt: ' + x.message); btn.disabled = false; btn.textContent = 'Inloggen'; }
 }
+/* ---------- werkbon-PDF meesturen naar VET Office (samen met de attesten factureren) ---------- */
+async function werkbonPdfNaarCloud(id) {
+  const o = S.orders.find((x) => x.id === id); if (!o || !CLOUD.session()) return;
+  const file = await new Promise((res) => { window._vang = res; setTimeout(() => { if (window._vang === res) { window._vang = null; res(null); } }, 30000); pdf(o.id); });
+  if (!file) return;
+  o.pdf = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); });
+  await save(); CLOUD.sync();
+}
+if (typeof fin === 'function') { const _fin = fin; window.fin = function () { _fin.apply(this, arguments); const o = O(); if (o && o.status === 'afgewerkt') setTimeout(() => werkbonPdfNaarCloud(o.id), 400); }; }
 Object.assign(window, { CLOUD, CLOUDST, CLOUDCARD });

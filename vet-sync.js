@@ -29,7 +29,7 @@
     if (v && typeof v === 'object') return '{' + Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
     return JSON.stringify(v === undefined ? null : v);
   }
-  const isImg = (v) => typeof v === 'string' && v.startsWith('data:image/') && v.length > 200;
+  const isImg = (v) => typeof v === 'string' && /^data:(image\/|application\/(pdf|xml))/.test(v) && v.length > 200;
   const isRef = (v) => typeof v === 'string' && v.startsWith('vf:');
 
   function create(opt) {
@@ -40,6 +40,8 @@
     const status = (s) => { err = s.error || ''; try { opt.onStatus && opt.onStatus(Object.assign({ user: session() && session().user, last, busy }, s)); } catch (e) {} };
     const saveMeta = () => ls.set(MK, meta);
     const session = () => ls.get(SK);
+    // eigenaar van de gegevens: jezelf, of (boekhouder) de klant wiens administratie je bekijkt
+    const owner = () => (opt.owner && opt.owner()) || (session() && session().user.id);
 
     async function authReq(body, grant) {
       const r = await fetch(BASE() + '/auth/v1/token?grant_type=' + grant, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -70,7 +72,7 @@
       if (isImg(v)) {
         const hh = hash(v);
         if (!meta.f[hh]) {
-          const m = v.match(/^data:(image\/[a-z+]+);base64,(.*)$/); if (!m) return v;
+          const m = v.match(/^data:([a-z]+\/[a-z0-9.+-]+);base64,(.*)$/); if (!m) return v;
           const ext = m[1].split('/')[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
           const path = uid + '/' + hh + '.' + ext;
           const bin = atob(m[2]); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -82,19 +84,19 @@
       return v;
     }
     const fileCache = {};
+    async function fileData(path) {
+      if (!fileCache[path]) {
+        const r = await api('/storage/v1/object/authenticated/' + BUCKET + '/' + path);
+        const b = await r.blob();
+        fileCache[path] = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
+        meta.f[hash(fileCache[path])] = path;
+      }
+      return fileCache[path];
+    }
     async function toLocal(v) {
       if (Array.isArray(v)) { const o = []; for (const x of v) o.push(await toLocal(x)); return o; }
       if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = await toLocal(v[k]); return o; }
-      if (isRef(v)) {
-        const path = v.slice(3);
-        if (!fileCache[path]) {
-          const r = await api('/storage/v1/object/authenticated/' + BUCKET + '/' + path);
-          const b = await r.blob();
-          fileCache[path] = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); });
-          meta.f[hash(fileCache[path])] = path;
-        }
-        return fileCache[path];
-      }
+      if (isRef(v)) return fileData(v.slice(3));
       return v;
     }
 
@@ -104,14 +106,15 @@
       // eerste vraag met 2 minuten overlap (vangt gelijktijdige wijzigingen op); dubbels worden via de hash overgeslagen
       let since = new Date(Math.max(0, new Date(meta.since).getTime() - 120000)).toISOString();
       for (;;) {
-        const q = '/rest/v1/docs?select=app,kind,id,data,deleted,updated_at&app=in.(' + opt.pullApps.join(',') + ')&updated_at=gt.' + encodeURIComponent(since) + '&order=updated_at.asc&limit=200';
+        const q = '/rest/v1/docs?select=app,kind,id,data,deleted,updated_at&user_id=eq.' + owner() + '&app=in.(' + opt.pullApps.join(',') + ')&updated_at=gt.' + encodeURIComponent(since) + '&order=updated_at.asc&limit=200';
         const rows = await (await api(q)).json();
         if (!rows.length) break;
         const changed = [];
         for (const r of rows) {
           const k = key(r), hh = r.deleted ? 'deleted' : hash(stable(r.data));
           if (meta.h[k] !== hh) {
-            changed.push({ app: r.app, kind: r.kind, id: r.id, deleted: r.deleted, data: r.deleted ? null : await toLocal(r.data) });
+            const keep = r.deleted || (opt.noFiles && opt.noFiles(r));
+            changed.push({ app: r.app, kind: r.kind, id: r.id, deleted: r.deleted, data: r.deleted ? null : keep ? r.data : await toLocal(r.data) });
             if (r.deleted) delete meta.h[k]; else meta.h[k] = hh;
           }
           if (r.updated_at > meta.since) meta.since = r.updated_at; since = r.updated_at;
@@ -148,7 +151,7 @@
       busy = true; status({ state: 'bezig' });
       try {
         await pull();
-        const n = await push();
+        const n = opt.readOnly && opt.readOnly() ? 0 : await push();
         if (n) await pull();
         last = Date.now(); busy = false; status({ state: 'ok' });
       } catch (e) {
@@ -172,7 +175,16 @@
     setInterval(() => { if (document.visibilityState === 'visible') sync(); }, 60000);
     setTimeout(sync, 800);
 
-    return { login, logout, sync, soon, markDeleted, session, get error() { return err; }, get last() { return last; }, get busy() { return busy; } };
+    // Supabase edge function aanroepen (Peppol, bank, …)
+    async function call(name, body) {
+      const r = await api('/functions/v1/' + name, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }).catch((e) => { throw e; });
+      return r.json();
+    }
+    async function rpc(name, body) { const r = await api('/rest/v1/rpc/' + name, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) }); const t = await r.text(); return t ? JSON.parse(t) : null; }
+    async function rest(path) { return (await api('/rest/v1/' + path)).json(); }
+    const file = (ref) => isRef(ref) ? fileData(ref.slice(3)) : Promise.resolve(ref);
+    function reset() { meta = { since: '1970-01-01T00:00:00Z', h: {}, f: {}, del: [] }; saveMeta(); }
+    return { login, logout, sync, soon, markDeleted, session, call, rpc, rest, file, reset, owner, get error() { return err; }, get last() { return last; }, get busy() { return busy; } };
   }
 
   root.VETSync = { create, hash, URL: URL_ };

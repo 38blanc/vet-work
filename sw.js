@@ -1,5 +1,5 @@
 // VET Work – offline cache. Netwerk eerst (altijd de nieuwste versie als er internet is), cache als terugval offline.
-const V='vw-v2';
+const V='vw-v3';
 const FILES=['./','index.html','vet-sync.js','work-cloud.js','pdf-lib.min.js','manifest.webmanifest','logo.png','logo-app.png','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(FILES.map(f=>new Request(f,{cache:'reload'})))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

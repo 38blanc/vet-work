@@ -113,6 +113,7 @@ async function pdf2(id){try{
  for(const[d,x,lb,nm]of[[o.sig,M,'Handtekening klant',o.sigNaam||o.klant],[S.tsig,x2,'Handtekening technieker','Jordy Van Eyen']])if(d){y=top;tx(lb,x,9,f,gr);const m=await doc.embedPng(d),z=m.scaleToFit(230,120);pg.drawImage(m,{x,y:top-8-z.height,width:z.width,height:z.height});y=top-136;rl(x,x+230,.8,gr);y-=12;tx(nm,x,9)}}
  need(90);y-=30;tx('Algemene voorwaarden:',M,7.5,fb,gr);for(const t of TERMS)para('· '+t,M,W-2*M,7,f,gr);
  const name=fname(o),file=new File([await doc.save()],name,{type:'application/pdf'});
+ if(window._vang){const fv=window._vang;window._vang=null;fv(file);return}
  try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file]});return}}catch(e){if(e.name=='AbortError')return}
  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();a.remove();
 }catch(e){alert('PDF maken mislukt: '+e.message)}}
@@ -154,7 +155,7 @@ function VC(){const c=C(),h=ords(c).sort((a,b)=>b.datum.localeCompare(a.datum));
 <div class="c"><input placeholder="Naam" value="${esc(c.n)}" oninput="setC('n',this.value)"><input placeholder="Adres" value="${esc(c.adres)}" oninput="setC('adres',this.value)"><div class="row wrap"><input style="flex:1;min-width:140px" type="tel" placeholder="Telefoon" value="${esc(c.tel)}" oninput="setC('tel',this.value)"><input style="flex:1;min-width:140px" type="email" placeholder="E-mail" value="${esc(c.mail)}" oninput="setC('mail',this.value)"></div></div>
 <button style="width:100%;margin-bottom:12px" onclick="newO('${c.id}')">+ Nieuwe werkbon voor deze klant</button>
 <div class="c"><h2>Werkbonnen (${h.length})</h2>${h.map(row).join('')||'<p class="mu">Nog geen werkbonnen.</p>'}</div>`}
-async function deliver(file){try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file]});return 1}}catch(e){if(e.name=='AbortError')return}const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove();return 1}
+async function deliver(file){if(window._vang){const f=window._vang;window._vang=null;f(file);return 1}try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file]});return 1}}catch(e){if(e.name=='AbortError')return}const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.appendChild(a);a.click();a.remove();return 1}
 async function backup(){const f=new File([JSON.stringify(S)],'vet-work-backup-'+new Date().toISOString().slice(0,10)+'.json',{type:'application/json'});if(await deliver(f)){S.bk=Date.now();save();R()}}
 async function imp(inp){try{const d=JSON.parse(await inp.files[0].text());if(!Array.isArray(d.orders))throw 0;const m=(a,b)=>{const k=new Map(a.map(x=>[x.id,x]));b.forEach(x=>k.set(x.id,x));return[...k.values()]};S.orders=m(S.orders,d.orders);S.articles=m(S.articles,d.articles||[]);S.clients=m(S.clients||[],d.clients||[]);S.seq=Math.max(S.seq,d.seq||0);if(d.tsig&&!S.tsig)S.tsig=d.tsig;await save();alert('Back-up teruggezet.');go('list')}catch(e){alert('Dit bestand is geen geldige back-up.')}inp.value=''}
 function pdf(id){return(S.lay?pdf3:pdf2)(id)}

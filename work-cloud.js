@@ -73,10 +73,10 @@ const CLOUDCARD = () => {
   const s = CLOUD.session();
   if (!s) return `<div class="c" id="cloudcard"><h2>Cloud (VET Work + VET Heat)</h2><p class="mu">Log in om je gegevens automatisch te bewaren in de cloud en te delen met VET Heat en je andere toestellen.</p>
 <input id="ce" type="email" placeholder="E-mail" autocomplete="username"><input id="cp" type="password" placeholder="Wachtwoord" autocomplete="current-password">
-<button onclick="cloudLogin(this)">Inloggen</button></div>`;
+<button onclick="cloudLogin(this)">Inloggen</button>${window.VERSIEKAART ? VERSIEKAART() : ''}</div>`;
   return `<div class="c" id="cloudcard"><h2>Cloud (VET Work + VET Heat)</h2><p style="margin:0 0 6px">Ingelogd als <b>${esc(s.user.email)}</b></p>
 <p class="mu" style="margin:0 0 10px">${{ ok: '✓ Alles gesynchroniseerd om ' + hm2(CS.last), bezig: 'Bezig met synchroniseren…', offline: 'Geen internet: wijzigingen worden verstuurd zodra je weer online bent.', fout: 'Fout: ' + esc(CS.error || '') }[CS.state] || ''}</p>
-<div class="row wrap"><button class="b2" onclick="CLOUD.sync()">Nu synchroniseren</button><button class="b2" onclick="if(confirm('Uitloggen op dit toestel? Je gegevens blijven op dit toestel staan.'))CLOUD.logout()">Uitloggen</button></div></div>`;
+<div class="row wrap"><button class="b2" onclick="CLOUD.sync()">Nu synchroniseren</button><button class="b2" onclick="if(confirm('Uitloggen op dit toestel? Je gegevens blijven op dit toestel staan.'))CLOUD.logout()">Uitloggen</button></div>${window.VERSIEKAART ? VERSIEKAART() : ''}</div>`;
 };
 async function cloudLogin(btn) {
   const e = $('#ce').value, p = $('#cp').value; if (!e || !p) return;

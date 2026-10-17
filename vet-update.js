@@ -2,7 +2,9 @@
  * Werkt zonder de app opnieuw op het beginscherm te zetten. Je gegevens (op het toestel en in de cloud) blijven staan.
  * Zelfde bestand in VET Heat, VET Work en VET Office. De versie is de naam V in sw.js. */
 (function () {
-  const VU = { huidig: null, nieuw: null, bezig: false, gecontroleerd: 0 };
+  // de versie van de code die nu draait staat in index.html (meta vet-versie); anders de eerste controle na het openen
+  const meta = document.querySelector('meta[name="vet-versie"]');
+  const VU = { huidig: meta ? meta.content : null, nieuw: null, bezig: false, gecontroleerd: 0 };
   // ?v=… van een vorige update uit de adresbalk halen (andere parameters, bv. van de bankkoppeling, blijven)
   try { const u = new URL(location.href); if (u.searchParams.has('v')) { u.searchParams.delete('v'); history.replaceState(null, '', u.pathname + (u.search || '') + u.hash); } } catch (e) {}
 
@@ -50,6 +52,7 @@
   }
   window.vetUpdate = update; window.vetUpdateCheck = check; window.VERSIEKAART = kaart;
   setTimeout(check, 1500);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - VU.gecontroleerd > 60000) check(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - VU.gecontroleerd > 30000) check(); });
+  addEventListener('pageshow', () => { if (Date.now() - VU.gecontroleerd > 30000) check(); }); addEventListener('focus', () => { if (Date.now() - VU.gecontroleerd > 30000) check(); });
   setInterval(() => { if (document.visibilityState === 'visible') check(); }, 30 * 60000);
 })();

@@ -35,7 +35,7 @@
   #vetslot input{display:block;width:100%;box-sizing:border-box;margin:0 0 10px;padding:12px 14px;border-radius:10px;border:1px solid rgba(127,127,127,.35);font:16px system-ui;background:var(--in,#f6f8fa);color:inherit}
   #vetslot button{width:100%;padding:12px;border:0;border-radius:10px;background:#1b6a8a;color:#fff;font:700 16px system-ui;cursor:pointer;margin-top:4px}
   #vetslot .f{color:#c0392b;font-size:13px;margin-top:10px;min-height:16px}
-  body.vetslot>*:not(#vetslot){visibility:hidden}`;
+  body.vetslot>*:not(#vetslot):not(#vetupd){visibility:hidden}`;
   document.head.appendChild(css);
 
   const heeftCloud = () => typeof CLOUD !== 'undefined';

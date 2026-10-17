@@ -7,6 +7,17 @@
     : /vet-office/.test(pad) ? { db: 'vetoffice', ls: ['vo_eb_state'], meta: 'office', naam: 'VET Office' }
     : { db: 'vetheat', ls: ['vetheat'], meta: 'heat', naam: 'VET Heat' };
 
+  // 0) weergave: automatisch (volgt het toestel), licht of donker – per toestel bewaard
+  const zetThema = (t) => { const r = document.documentElement; if (t === 'light' || t === 'dark') r.dataset.theme = t; else delete r.dataset.theme;
+    const donker = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.dataset.licht = m.dataset.licht || m.content; m.content = donker ? '#121a1f' : m.dataset.licht; }); };
+  let thema = ''; try { thema = localStorage.getItem('vetThema') || ''; } catch (e) {}
+  zetThema(thema);
+  window.vetThema = (t) => { try { if (t) localStorage.setItem('vetThema', t); else localStorage.removeItem('vetThema'); } catch (e) {} thema = t; zetThema(t); const k = document.getElementById('vetthema'); if (k) k.outerHTML = window.THEMAKAART(); };
+  window.vetThemaNu = () => thema;
+  window.THEMAKAART = () => `<div id="vetthema" style="border-top:1px solid rgba(127,127,127,.25);margin-top:14px;padding-top:12px"><b>Weergave</b><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${[['', '🌗 Automatisch'], ['light', '☀️ Licht'], ['dark', '🌙 Donker']].map(([k, l]) => `<button type="button" class="${thema === k ? '' : 'b2'}" style="flex:1;min-width:0;width:auto;margin:0;padding:10px 6px;font-size:14px;white-space:nowrap" onclick="vetThema('${k}')">${l}</button>`).join('')}</div><p class="mu" style="margin:6px 0 0;font-size:12px">Automatisch volgt de instelling van je toestel (licht overdag, donker 's avonds als je dat zo ingesteld hebt).</p></div>`;
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => zetThema(thema));
+
   // 1) gegevens wissen na uitloggen – vóór de app haar database opent
   try {
     if (sessionStorage.getItem('vetWis') === APP.db) {

@@ -46,7 +46,7 @@
     return `<div id="vetversie" style="border-top:1px solid rgba(127,127,127,.25);margin-top:14px;padding-top:12px">
       <b>App-versie</b> <span class="mu">${VU.huidig || '…'}${VU.nieuw ? ' → nieuw: <b>' + VU.nieuw + '</b>' : VU.huidig ? ' · nieuwste versie' + (tijd ? ' (gecontroleerd ' + tijd + ')' : '') : ''}</span>
       <div class="row wrap" style="margin-top:8px;gap:8px"><button ${VU.nieuw ? '' : 'class="b2"'} onclick="vetUpdate()">${VU.nieuw ? 'Bijwerken naar de nieuwste versie' : 'Nieuwste versie laden'}</button><button class="b2" onclick="vetUpdateCheck(1)">Controleer op update</button></div>
-      <p class="mu" style="margin:8px 0 0;font-size:12px">Je hoeft de app niet meer te verwijderen of opnieuw te installeren. Je gegevens blijven staan.</p></div>`;
+      <p class="mu" style="margin:8px 0 0;font-size:12px">Je hoeft de app niet meer te verwijderen of opnieuw te installeren. Je gegevens blijven staan.</p>${window.THEMAKAART ? THEMAKAART() : ''}</div>`;
   }
   window.vetUpdate = update; window.vetUpdateCheck = check; window.VERSIEKAART = kaart;
   setTimeout(check, 1500);

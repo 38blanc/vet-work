@@ -76,7 +76,7 @@ const CLOUDCARD = () => {
 <button onclick="cloudLogin(this)">Inloggen</button>${window.VERSIEKAART ? VERSIEKAART() : ''}</div>`;
   return `<div class="c" id="cloudcard"><h2>Cloud (VET Work + VET Heat)</h2><p style="margin:0 0 6px">Ingelogd als <b>${esc(s.user.email)}</b></p>
 <p class="mu" style="margin:0 0 10px">${{ ok: '✓ Alles gesynchroniseerd om ' + hm2(CS.last), bezig: 'Bezig met synchroniseren…', offline: 'Geen internet: wijzigingen worden verstuurd zodra je weer online bent.', fout: 'Fout: ' + esc(CS.error || '') }[CS.state] || ''}</p>
-<div class="row wrap"><button class="b2" onclick="CLOUD.sync()">Nu synchroniseren</button><button class="b2" onclick="if(confirm('Uitloggen op dit toestel? Je gegevens blijven op dit toestel staan.'))CLOUD.logout()">Uitloggen</button></div>${window.VERSIEKAART ? VERSIEKAART() : ''}</div>`;
+<div class="row wrap"><button class="b2" onclick="CLOUD.sync()">Nu synchroniseren</button><button class="b2" onclick="vetUitloggen()">Uitloggen</button></div>${window.VERSIEKAART ? VERSIEKAART() : ''}</div>`;
 };
 async function cloudLogin(btn) {
   const e = $('#ce').value, p = $('#cp').value; if (!e || !p) return;

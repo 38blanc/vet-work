@@ -202,7 +202,7 @@ async function pdf3(id){try{
  await deliver(new File([await doc.save()],fname(o),{type:'application/pdf'}));
 }catch(e){alert('PDF maken mislukt: '+e.message)}}
 let tab='open',q='';
-const row=o=>`<div class="item" onclick="go('ord','${o.id}')"><div><b>${esc(o.klant)||'Zonder klantnaam'}</b><div class="mu">${esc(o.nr)} · ${dt(o.datum)} · ${hms(tot(o))}</div></div><div class="row">${isRun(o)?'<span class="tag r">Loopt</span>':''}${o.status=='afgewerkt'?`<button class="b2" onclick="event.stopPropagation();pdf('${o.id}')">⬇ PDF</button>`:''}</div></div>`;
+const row=o=>`<div class="item" onclick="go('ord','${o.id}')"><div><b>${esc(o.klant)||'Zonder klantnaam'}</b><div class="mu">${esc(o.nr)} · ${dt(o.datum)} · ${hms(tot(o))}${o.afspr&&o.afspr.d&&o.status!='afgewerkt'?` · 📅 ${dt(o.afspr.d)}${o.afspr.van?' '+o.afspr.van:''}`:''}</div></div><div class="row">${isRun(o)?'<span class="tag r">Loopt</span>':''}${o.status=='afgewerkt'?`<button class="b2" onclick="event.stopPropagation();pdf('${o.id}')">⬇ PDF</button>`:''}</div></div>`;
 function LST(){
  if(tab=='kl'){const k=q.trim().toLowerCase(),a=S.clients.filter(c=>!k||[c.n,c.adres,c.tel,c.mail].join(' ').toLowerCase().includes(k)).sort((a,b)=>a.n.localeCompare(b.n));return a.map(c=>`<div class="item" onclick="go('cd','${c.id}')"><div><b>${esc(c.n)||'Zonder naam'}</b><div class="mu">${esc(c.adres)}</div></div><span class="tag">${ords(c).length} werkbon(nen)</span></div>`).join('')||'<p class="mu">Nog geen klanten. Ze worden automatisch bewaard zodra je een werkbon afrondt.</p>'}
  if(tab=='open'){const a=S.orders.filter(o=>o.status!='afgewerkt');return a.map(row).join('')||'<p class="mu">Geen open werkbonnen.</p>'}
@@ -234,6 +234,7 @@ ${ren?`<div class="row" style="margin:6px 0 12px"><input id="rnm" value="${esc(o
 <div class="row wrap"><input style="flex:1;min-width:140px" type="tel" placeholder="Telefoon" value="${esc(o.tel)}" oninput="upd('tel',this.value)"><input style="flex:1;min-width:140px" type="email" placeholder="E-mail" value="${esc(o.mail)}" oninput="upd('mail',this.value)"></div><br>
 <div class="mu">Datum</div><input type="date" value="${o.datum}" oninput="upd('datum',this.value)">
 <textarea placeholder="Omschrijving / reden van interventie" oninput="upd('omschr',this.value)">${esc(o.omschr)}</textarea></div>
+${!done&&window.afsprKaart?afsprKaart(o):''}
 <div class="c"><h2>Woning (btw-tarief)</h2><div class="tg np"><button class="${o.btw==6?'on':''}" onclick="setBtw(6)">Ouder dan 10 jaar · 6%</button><button class="${o.btw==21?'on':''}" onclick="setBtw(21)">Nieuwer dan 10 jaar · 21%</button></div></div>
 <div class="c ${run?'run':''}"><h2>Tijdsregistratie</h2><div class="tm" id="tt">${hms(tot(o))}</div>
 ${done?'':`<button class="np ${run?'red':''}" onclick="tgl()">${run?'■ Stop':'▶ Start'}</button>`}
@@ -267,5 +268,6 @@ load().then(()=>{S.clients=S.clients||[];R()});
 </script>
 <script src="vet-sync.js"></script>
 <script src="work-cloud.js"></script>
+<script src="work-agenda.js"></script>
 <script src="vet-update.js"></script>
 </body></html>
